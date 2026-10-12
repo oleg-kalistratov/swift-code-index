@@ -54,7 +54,17 @@ swift build -c release
 swift build -c release --show-bin-path   # prints the directory containing index-store-mcp
 ```
 
-Or download the prebuilt Apple silicon binary attached to each [release](https://github.com/oleg-kalistratov/swift-code-index/releases), with its SHA-256 next to it. Then add it to your client with the absolute path to the binary. GUI apps such as Claude Desktop don't see your shell's `PATH`.
+Or download the prebuilt Apple silicon binary attached to each [release](https://github.com/oleg-kalistratov/swift-code-index/releases), with its SHA-256 next to it. From a shell, this takes the latest release and checks it:
+
+```sh
+gh release download --repo oleg-kalistratov/swift-code-index --pattern 'index-store-mcp-*'
+shasum -a 256 -c index-store-mcp-*-arm64-macos.tar.gz.sha256
+tar -xzf index-store-mcp-*-arm64-macos.tar.gz
+```
+
+The binary is signed ad hoc, not notarized by Apple. Downloaded with `gh` or `curl` it runs as is. Downloaded through a browser, macOS marks it as coming from the internet and refuses to run it; clear the mark once with `xattr -d com.apple.quarantine index-store-mcp`. The Claude Code plugin builds the server on your Mac and is not affected.
+
+Then add it to your client with the absolute path to the binary. GUI apps such as Claude Desktop don't see your shell's `PATH`.
 
 ```json
 {
