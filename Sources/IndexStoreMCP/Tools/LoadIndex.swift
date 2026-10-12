@@ -3,12 +3,27 @@ import MCP
 import Foundation
 import CryptoKit
 
-func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
-    guard let workspacePath = args["workspacePath"]?.stringValue else {
-        return .failure("Missing required argument: workspacePath")
+func handleLoadIndex(
+    _ args: [String: Value],
+    indexStore: IndexStore,
+    currentDirectory: String = FileManager.default.currentDirectoryPath
+) async throws -> CallTool.Result {
+    let fm = FileManager.default
+    let workspacePath: String
+    if let path = args["workspacePath"]?.stringValue {
+        workspacePath = path
+    } else {
+        let candidates = workspaceCandidates(in: currentDirectory)
+        guard let first = candidates.first else {
+            return .failure("No .xcworkspace, .xcodeproj or Package.swift in \(currentDirectory). Pass workspacePath.")
+        }
+        // Xcode keys DerivedData by what was opened, so take the first candidate
+        // that has been built; if none has, the first one gets the usual error.
+        workspacePath = candidates.first {
+            findDerivedDataDir(forWorkspacePath: $0, searchBases: derivedDataSearchBases(forWorkspacePath: $0), fm: fm) != nil
+        } ?? first
     }
     
-    let fm = FileManager.default
     var isDirectory: ObjCBool = false
     guard fm.fileExists(atPath: workspacePath, isDirectory: &isDirectory) else {
         return .failure("Path does not exist: \(workspacePath)")
@@ -82,6 +97,25 @@ func handleLoadIndex(_ args: [String: Value], indexStore: IndexStore) async thro
     } catch {
         return .failure("Failed to load index: \(error)")
     }
+}
+
+// MARK: - Workspace discovery
+
+/// Projects in `directory` that Xcode could have built, in the order a person
+/// would open them: workspaces, then projects, then the folder itself when it is
+/// a Swift package. Only top-level entries count, so the project.xcworkspace that
+/// every .xcodeproj embeds is not a candidate.
+func workspaceCandidates(in directory: String) -> [String] {
+    let url = URL(fileURLWithPath: directory).standardizedFileURL
+    let fm = FileManager.default
+    let entries = ((try? fm.contentsOfDirectory(atPath: url.path)) ?? []).sorted()
+    let workspaces = entries.filter { $0.hasSuffix(".xcworkspace") }
+    let projects = entries.filter { $0.hasSuffix(".xcodeproj") }
+    var candidates = (workspaces + projects).map { url.appendingPathComponent($0).path }
+    if fm.fileExists(atPath: url.appendingPathComponent("Package.swift").path) {
+        candidates.append(url.path)
+    }
+    return candidates
 }
 
 // MARK: - DerivedData discovery
