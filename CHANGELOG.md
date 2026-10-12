@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-12
+
+First release as swift-code-index, a fork of hrdkp/swift-index-store-mcp.
+Installed as a Claude Code plugin from this repository; the server binary
+keeps its name, `index-store-mcp`.
 
 ### Added
 - Claude Code plugin in the repository itself, which is also its own
@@ -47,7 +51,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [0.1.0] - 2026-10-05
 
-First release, distributed as a prebuilt Apple silicon binary through Homebrew.
+First release of the upstream project, hrdkp/swift-index-store-mcp,
+distributed as a prebuilt Apple silicon binary through its Homebrew tap.
 
 ### Added
 - MCP server over stdio with eight tools: `loadIndex`, `searchSymbol`,
@@ -62,4 +67,5 @@ First release, distributed as a prebuilt Apple silicon binary through Homebrew.
 - Apple silicon Mac with Xcode 16 or later selected (`xcode-select` or
   `DEVELOPER_DIR`).
 
+[0.2.0]: https://github.com/oleg-kalistratov/swift-code-index/releases/tag/v0.2.0
 [0.1.0]: https://github.com/hrdkp/swift-index-store-mcp/releases/tag/v0.1.0

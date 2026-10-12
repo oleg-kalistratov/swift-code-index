@@ -54,7 +54,7 @@ swift build -c release
 swift build -c release --show-bin-path   # prints the directory containing index-store-mcp
 ```
 
-Then add it to your client with the absolute path to the binary. GUI apps such as Claude Desktop don't see your shell's `PATH`.
+Or download the prebuilt Apple silicon binary attached to each [release](https://github.com/oleg-kalistratov/swift-code-index/releases), with its SHA-256 next to it. Then add it to your client with the absolute path to the binary. GUI apps such as Claude Desktop don't see your shell's `PATH`.
 
 ```json
 {
