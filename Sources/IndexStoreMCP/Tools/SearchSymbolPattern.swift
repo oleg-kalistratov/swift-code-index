@@ -17,6 +17,7 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
     let ignoreCase    = args["ignoreCase"]?.boolValue    ?? true
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
+    let limit = max(1, args["limit"]?.intValue ?? 50)
     
     let all = database.canonicalOccurrences(
         containing: pattern,
@@ -26,9 +27,17 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
         ignoreCase: ignoreCase
     ).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
-    let results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
+    // Shortest names first: with subsequence matching on, the closest match to the
+    // pattern is the one with the fewest extra characters.
+    let results = nonSystem
+        .filter { includeStale || !$0.isStale(in: database) }
+        .sorted { ($0.symbol.name.count, $0.symbol.name, $0.location.path) < ($1.symbol.name.count, $1.symbol.name, $1.location.path) }
+    let shown = results.prefix(limit)
     
-    let items: [[String: String]] = results.map { $0.toCanonicalDict() }
-    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, staleCount: nonSystem.count - results.count)
+    let items: [[String: String]] = shown.map { $0.toCanonicalDict() }
+    var output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, staleCount: nonSystem.count - results.count)
+    if shown.count < results.count {
+        output += "\n\nNote: showing \(shown.count) of \(results.count) matches, shortest names first. Use a longer pattern, anchorStart/anchorEnd, or a higher limit."
+    }
     return .success(output)
 }

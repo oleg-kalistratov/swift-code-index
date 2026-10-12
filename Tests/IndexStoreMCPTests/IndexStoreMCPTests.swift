@@ -169,6 +169,35 @@ struct SearchSymbolTests {
     }
 }
 
+// MARK: - searchSymbolPattern
+
+@Suite("searchSymbolPattern")
+struct SearchSymbolPatternTests {
+    /// A short subsequence pattern matched 120,000 characters of symbols in a large
+    /// app; the result is capped and says how many matches were left out.
+    @Test func capsResultsAndReportsTheRest() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbolPattern(
+            ["pattern": .string("e"), "limit": .int(3)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        let rows = result.text.components(separatedBy: "\n").filter { $0.hasPrefix("{") }
+        #expect(rows.count == 3)
+        #expect(result.text.contains("Note: showing 3 of"))
+    }
+
+    @Test func ranksClosestNameFirst() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbolPattern(
+            ["pattern": .string("IndexStore"), "anchorStart": .bool(true), "limit": .int(1)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("\"name\":\"IndexStore\""))
+    }
+}
+
 // MARK: - symbolAtPosition
 
 @Suite("symbolAtPosition")
@@ -232,6 +261,31 @@ struct SymbolsInFileTests {
         #expect(result.text.contains("setDatabase"))
         #expect(result.text.contains("loadEnded"))
     }
+
+    /// The outline is for finding the part of a file to read: parameters, compiler-
+    /// synthesized members and USRs made it about as long as the file itself.
+    @Test func outlineOmitsParametersImplicitMembersAndUSRsByDefault() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolsInFile(
+            ["file": .string(indexStoreFile)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(!result.text.contains("\"kind\":\"parameter\""))
+        #expect(!result.text.contains("implicit"))
+        #expect(!result.text.contains("\"usr\""))
+        #expect(result.text.contains("\"line\""))
+    }
+
+    @Test func includesUSRsWhenAsked() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolsInFile(
+            ["file": .string(indexStoreFile), "includeUSR": .bool(true)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains(try await indexStoreActorUSR(in: store)))
+    }
 }
 
 // MARK: - getOccurrences
@@ -266,6 +320,79 @@ struct GetOccurrencesTests {
         )
         #expect(result.isFailure)
         #expect(result.text.contains("Unknown role"))
+    }
+}
+
+// MARK: - findImplementations
+
+/// Standard-library USRs: their mangling is fixed by the Swift ABI, so they are
+/// stable fixtures. This package's own sources conform to these protocols.
+private let caseIterableUSR = "s:s12CaseIterableP"
+private let customStringConvertibleUSR = "s:s23CustomStringConvertibleP"
+private let descriptionRequirementUSR = "s:s23CustomStringConvertibleP11descriptionSSvp"
+
+@Suite("findImplementations")
+struct FindImplementationsTests {
+    @Test func findsTypesConformingToProtocol() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleFindImplementations(
+            ["usr": .string(caseIterableUSR)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("\"name\":\"RoleName\""))
+        #expect(result.text.contains("RoleMapping.swift:12"))
+    }
+
+    /// Regression for the gap relatedOccurrences leaves: asked about a protocol, it
+    /// lists the protocol's own members and bases, never the conforming types.
+    @Test func listsConformersNotProtocolMembers() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleFindImplementations(
+            ["usr": .string(customStringConvertibleUSR)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("\"name\":\"LoadIndexError\""))
+        #expect(!result.text.contains("\"name\":\"description\""))
+    }
+
+    @Test func findsMembersImplementingRequirement() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleFindImplementations(
+            ["usr": .string(descriptionRequirementUSR)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("\"name\":\"description\""))
+        #expect(result.text.contains("LoadIndex.swift"))
+    }
+
+    @Test func returnsMessageForBogusUSR() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleFindImplementations(
+            ["usr": .string("s:totally_bogus_usr")],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("No implementations found"))
+    }
+
+    @Test func requiresUSR() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleFindImplementations([:], indexStore: store)
+        #expect(result.isFailure)
+        #expect(result.text.contains("Missing required argument: usr"))
+    }
+
+    @Test func requiresLoadedIndex() async throws {
+        let store = IndexStore()
+        let result = try await handleFindImplementations(
+            ["usr": .string(caseIterableUSR)],
+            indexStore: store
+        )
+        #expect(result.isFailure)
+        #expect(result.text.contains("No index loaded"))
     }
 }
 

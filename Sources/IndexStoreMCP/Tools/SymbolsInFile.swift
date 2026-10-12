@@ -19,9 +19,16 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
+    let includeUSR = args["includeUSR"]?.boolValue ?? false
     
     let all = database.symbolOccurrences(inFilePath: file).uniqued()
-    let roleFiltered = all.filter { !$0.roles.intersection(roles).isEmpty }
+    // Parameters and compiler-synthesized members are not places to read; on a
+    // 4,400-line file they were 340 of 742 rows.
+    let roleFiltered = all.filter {
+        !$0.roles.intersection(roles).isEmpty
+            && $0.symbol.kind != .parameter
+            && !$0.roles.contains(.implicit)
+    }
     let nonSystem = roleFiltered.filter { includeSystem || !$0.location.isSystem }
     let results = nonSystem.filter { includeStale || !$0.isStale(in: database) }
     if results.isEmpty && all.isEmpty {
@@ -33,12 +40,18 @@ func handleSymbolsInFile(_ args: [String: Value], indexStore: IndexStore) async 
     let items: [[String: Any]] = sorted.map { occurrence in
         var dict: [String: Any] = [
             "name":   occurrence.symbol.name,
-            "usr":    occurrence.symbol.usr,
             "kind":   String(describing: occurrence.symbol.kind),
             "line":   occurrence.location.line,
             "column": occurrence.location.utf8Column,
-            "role":   String(describing: occurrence.roles),
         ]
+        // USRs are most of an outline's size; symbolAtPosition gets one on demand.
+        if includeUSR {
+            dict["usr"] = occurrence.symbol.usr
+        }
+        // With the default filter every row is a definition, so the role says nothing.
+        if !roleStrings.isEmpty {
+            dict["role"] = String(describing: occurrence.roles)
+        }
         if occurrence.symbol.subKind != .none {
             dict["subKind"] = String(describing: occurrence.symbol.subKind)
         }

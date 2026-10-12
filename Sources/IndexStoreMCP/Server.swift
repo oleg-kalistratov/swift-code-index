@@ -16,6 +16,7 @@ enum ToolName: String {
     case symbolAtPosition
     case getOccurrences
     case relatedOccurrences
+    case findImplementations
     case symbolsInFile
     case refreshIndex
 }
@@ -63,13 +64,17 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.searchSymbolPattern.rawValue,
-                    description: "Fuzzy symbol search for when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include dependencies; use anchorStart/anchorEnd and longer patterns to narrow them. Returns USRs for getOccurrences or relatedOccurrences.",
+                    description: "Fuzzy symbol search for when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include dependencies; use anchorStart/anchorEnd and longer patterns to narrow them. Returns at most `limit` matches (default 50), shortest names first, and says how many were left out. Returns USRs for getOccurrences or relatedOccurrences.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
                             "pattern": .object([
                                 "type": .string("string"),
                                 "description": .string("Partial or full symbol name to search for. Subsequence matching is on by default: 'mvc' finds 'MyViewController'."),
+                            ]),
+                            "limit": .object([
+                                "type": .string("integer"),
+                                "description": .string("Maximum number of matches to return. Defaults to 50."),
                             ]),
                             "anchorStart": .object([
                                 "type": .string("boolean"),
@@ -158,7 +163,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.relatedOccurrences.rawValue,
-                    description: "Find structural relationships for a symbol by USR: protocol conformances, method overrides, type extensions. Answers \"what will break if I change this?\" — use it before refactoring a protocol, base class, or overridable method so every conforming type and override is found.",
+                    description: "Find structural relationships for a symbol by USR: its members, the protocols and superclasses it builds on, the requirements it satisfies, and its extensions. To list the types that conform to a protocol or subclass a class, or the members that implement a requirement, use findImplementations instead.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -184,8 +189,30 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                     ])
                 ),
                 Tool(
+                    name: ToolName.findImplementations.rawValue,
+                    description: "List what implements a symbol, given its USR: for a protocol or class, every type that conforms to or inherits from it (including extensions that add the conformance); for a protocol requirement or overridable method, every member that implements or overrides it. Answers \"who implements this protocol?\" and \"what will break if I change this requirement?\" in one call. Types in test targets appear only after the tests were built.",
+                    inputSchema: .object([
+                        "type": .string("object"),
+                        "properties": .object([
+                            "usr": .object([
+                                "type": .string("string"),
+                                "description": .string("USR of a protocol, class, protocol requirement, or overridable method, from searchSymbol or symbolAtPosition"),
+                            ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include implementations in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include implementations whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
+                        ]),
+                        "required": .array([.string("usr")]),
+                    ])
+                ),
+                Tool(
                     name: ToolName.symbolsInFile.rawValue,
-                    description: "Get a structural outline of a file — symbol names, kinds, USRs, and line numbers — without reading the source. Call this before opening a large Swift/Objective-C file to find the part you need, and to keep your context small.",
+                    description: "Get a structural outline of a file — symbol names, kinds, and line numbers — without reading the source. Call this before opening a large Swift/Objective-C file to find the part you need, and to keep your context small. Parameters and compiler-synthesized members are left out. USRs are omitted unless includeUSR is true; for a single symbol, call symbolAtPosition with its line and column.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -197,6 +224,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("array"),
                                 "items": .object(["type": .string("string")]),
                                 "description": .string("Optional role filter. Defaults to definition only."),
+                            ]),
+                            "includeUSR": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include each symbol's USR. Defaults to false to keep the outline short."),
                             ]),
                             "includeSystem": .object([
                                 "type": .string("boolean"),
@@ -240,6 +271,8 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             return try await handleGetOccurrences(args, indexStore: indexStore)
         case .relatedOccurrences:
             return try await handleRelatedOccurrences(args, indexStore: indexStore)
+        case .findImplementations:
+            return try await handleFindImplementations(args, indexStore: indexStore)
         case .symbolsInFile:
             return try await handleSymbolsInFile(args, indexStore: indexStore)
         case .refreshIndex:
