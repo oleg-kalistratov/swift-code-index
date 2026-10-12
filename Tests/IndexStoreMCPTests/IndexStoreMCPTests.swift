@@ -232,6 +232,31 @@ struct SymbolsInFileTests {
         #expect(result.text.contains("setDatabase"))
         #expect(result.text.contains("loadEnded"))
     }
+
+    /// The outline is for finding the part of a file to read: parameters, compiler-
+    /// synthesized members and USRs made it about as long as the file itself.
+    @Test func outlineOmitsParametersImplicitMembersAndUSRsByDefault() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolsInFile(
+            ["file": .string(indexStoreFile)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(!result.text.contains("\"kind\":\"parameter\""))
+        #expect(!result.text.contains("implicit"))
+        #expect(!result.text.contains("\"usr\""))
+        #expect(result.text.contains("\"line\""))
+    }
+
+    @Test func includesUSRsWhenAsked() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSymbolsInFile(
+            ["file": .string(indexStoreFile), "includeUSR": .bool(true)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains(try await indexStoreActorUSR(in: store)))
+    }
 }
 
 // MARK: - getOccurrences

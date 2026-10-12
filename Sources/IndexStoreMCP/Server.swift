@@ -208,7 +208,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.symbolsInFile.rawValue,
-                    description: "Get a structural outline of a file — symbol names, kinds, USRs, and line numbers — without reading the source. Call this before opening a large Swift/Objective-C file to find the part you need, and to keep your context small.",
+                    description: "Get a structural outline of a file — symbol names, kinds, and line numbers — without reading the source. Call this before opening a large Swift/Objective-C file to find the part you need, and to keep your context small. Parameters and compiler-synthesized members are left out. USRs are omitted unless includeUSR is true; for a single symbol, call symbolAtPosition with its line and column.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -220,6 +220,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("array"),
                                 "items": .object(["type": .string("string")]),
                                 "description": .string("Optional role filter. Defaults to definition only."),
+                            ]),
+                            "includeUSR": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include each symbol's USR. Defaults to false to keep the outline short."),
                             ]),
                             "includeSystem": .object([
                                 "type": .string("boolean"),

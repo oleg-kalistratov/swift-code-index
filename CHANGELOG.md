@@ -13,6 +13,11 @@ All notable changes to this project are documented here. The format follows
   `relatedOccurrences` asked about a protocol returns the protocol's own members
   and bases, not its conformers.
 
+### Changed
+- `symbolsInFile` leaves out parameters and compiler-synthesized members, and
+  omits USRs and roles unless asked (`includeUSR`, an explicit `roles` filter).
+  On a 4,400-line file the outline went from 172,685 to 35,338 characters.
+
 ## [0.1.0] - 2026-10-05
 
 First release, distributed as a prebuilt Apple silicon binary through Homebrew.
