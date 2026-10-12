@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- `loadIndex` works without `workspacePath`: it loads the project in the
+  server's working directory, preferring an `.xcworkspace`, then an
+  `.xcodeproj`, then a Swift package, and picks the first one Xcode has built.
+- `includeDependencies` on `searchSymbol`, `searchSymbolPattern`,
+  `getOccurrences`, `relatedOccurrences` and `findImplementations`. By default
+  results come from the project's own code only, with a note counting what was
+  left out in Swift packages, Pods and Carthage checkouts. On a large app 85 of
+  192 fuzzy matches came from SDK checkouts.
 - `findImplementations`: given a protocol or class, lists every conforming or
   inheriting type (including extensions that add the conformance); given a
   protocol requirement or overridable method, lists every implementing member.

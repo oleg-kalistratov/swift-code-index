@@ -122,6 +122,119 @@ struct LoadIndexTests {
         )
         #expect(result.isFailure)
     }
+
+    /// Agents rarely know the project's path, but the server is started in the project folder.
+    @Test func loadsProjectInWorkingDirectoryWhenNoPathGiven() async throws {
+        let store = IndexStore()
+        let result = try await handleLoadIndex([:], indexStore: store, currentDirectory: workspacePath)
+        #expect(!result.isFailure, "loadIndex failed: \(result.text)")
+        #expect(result.text.contains("Index loaded"))
+    }
+
+    @Test func explainsWhenWorkingDirectoryHasNoProject() async throws {
+        let store = IndexStore()
+        let empty = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: empty, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: empty) }
+        let result = try await handleLoadIndex([:], indexStore: store, currentDirectory: empty.path)
+        #expect(result.isFailure)
+        #expect(result.text.contains("Pass workspacePath"))
+    }
+}
+
+// MARK: - workspace discovery
+
+@Suite("workspace discovery")
+struct WorkspaceDiscoveryTests {
+    /// A workspace is what Xcode builds when both exist, and a project's own
+    /// embedded project.xcworkspace is not a candidate.
+    @Test func prefersWorkspaceThenProjectThenPackage() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString).standardizedFileURL
+        try fm.createDirectory(at: dir.appendingPathComponent("B.xcodeproj/project.xcworkspace"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: dir.appendingPathComponent("A.xcworkspace"), withIntermediateDirectories: true)
+        try Data().write(to: dir.appendingPathComponent("Package.swift"))
+        defer { try? fm.removeItem(at: dir) }
+
+        #expect(workspaceCandidates(in: dir.path) == [
+            dir.appendingPathComponent("A.xcworkspace").path,
+            dir.appendingPathComponent("B.xcodeproj").path,
+            dir.path,
+        ])
+    }
+
+    @Test func findsNothingInAnEmptyFolder() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        #expect(workspaceCandidates(in: dir.path).isEmpty)
+    }
+}
+
+// MARK: - project scope
+
+@Suite("project scope")
+struct ProjectScopeTests {
+    @Test func rootIsTheFolderHoldingAWorkspaceOrProject() {
+        #expect(ProjectScope(workspacePath: "/p/App.xcworkspace").root == "/p")
+        #expect(ProjectScope(workspacePath: "/p/App.xcodeproj").root == "/p")
+        #expect(ProjectScope(workspacePath: "/p").root == "/p")
+    }
+
+    @Test func containsOnlyTheProjectsOwnSources() {
+        let scope = ProjectScope(workspacePath: "/p/App.xcworkspace")
+        #expect(scope.contains("/p/Sources/A.swift"))
+        #expect(!scope.contains("/Users/me/Library/Developer/Xcode/DerivedData/App-abc/SourcePackages/checkouts/lib/A.swift"))
+        #expect(!scope.contains("/p/Pods/Lib/A.swift"))
+        #expect(!scope.contains("/p/Carthage/Checkouts/Lib/A.swift"))
+        #expect(!scope.contains("/p/.build/checkouts/lib/A.swift"))
+        #expect(!scope.contains("/project2/A.swift"))
+    }
+}
+
+// MARK: - dependency filter
+
+/// `Server` is defined in the MCP Swift SDK, a package dependency that Xcode
+/// resolves into DerivedData, outside this package's folder.
+private func mcpServerUSR(in store: IndexStore) async throws -> String {
+    let database = try #require(await store.database)
+    let definition = database.canonicalOccurrences(ofName: "Server")
+        .first { $0.location.path.contains("SourcePackages/checkouts/swift-sdk") }
+    return try #require(definition?.symbol.usr, "MCP Server type not found in the indexed dependencies")
+}
+
+@Suite("dependency filter")
+struct DependencyFilterTests {
+    /// On a large app, 22 of 50 fuzzy matches came from SDK checkouts.
+    @Test func searchHidesDependencySymbolsByDefault() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbol(["name": .string("Server")], indexStore: store)
+        #expect(!result.isFailure)
+        #expect(!result.text.contains("SourcePackages/checkouts"))
+        #expect(result.text.contains("includeDependencies: true"))
+    }
+
+    @Test func searchIncludesDependenciesWhenAsked() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbol(
+            ["name": .string("Server"), "includeDependencies": .bool(true)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("SourcePackages/checkouts/swift-sdk"))
+    }
+
+    @Test func occurrencesKeepTheProjectsUsesOfADependencySymbol() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleGetOccurrences(
+            ["usr": .string(try await mcpServerUSR(in: store))],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("Sources/IndexStoreMCP/Server.swift"))
+        #expect(!result.text.contains("SourcePackages/checkouts"))
+    }
 }
 
 // MARK: - searchSymbol

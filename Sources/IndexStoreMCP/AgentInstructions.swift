@@ -10,13 +10,16 @@ enum AgentInstructions {
     so there are no false matches from comments, strings or similarly named symbols.
 
     Workflow:
-    1. Call `loadIndex` once per session with the .xcworkspace, .xcodeproj, or package directory.
+    1. Call `loadIndex` once per session. With no arguments it loads the project in the
+       current folder; pass workspacePath for another .xcworkspace, .xcodeproj or package.
     2. `searchSymbol` (exact name) or `searchSymbolPattern` (partial name) to get a USR.
     3. `getOccurrences` with the USR to find usages and callers; `findImplementations` to find
        conforming types and implementing members; `relatedOccurrences` for members and extensions.
     4. `symbolAtPosition` to get the USR at a file position; `symbolsInFile` for a file outline.
     5. `refreshIndex` after a build.
 
-    Fall back to grep for non-symbol text such as strings, comments, and config files.
+    Results cover the project's own code; pass includeDependencies to search Swift packages
+    and Pods as well. Fall back to grep for non-symbol text such as strings, comments, and
+    config files.
     """
 }

@@ -28,16 +28,16 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             .init(tools: [
                 Tool(
                     name: ToolName.loadIndex.rawValue,
-                    description: "Start here. Loads the Xcode index so the other tools can answer semantic questions about Swift and Objective-C code: definitions, references, callers, protocol conformances, overrides. Must be called once per session before any other tool, with the .xcworkspace, .xcodeproj, or Swift Package directory. The project must have been built in Xcode at least once. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/relatedOccurrences. Call refreshIndex after a build to pick up changes.",
+                    description: "Start here. Loads the Xcode index so the other tools can answer semantic questions about Swift and Objective-C code: definitions, references, callers, protocol conformances, overrides. Must be called once per session before any other tool. Without workspacePath it loads the project in the server's working directory (its .xcworkspace, else its .xcodeproj, else its Swift package). The project must have been built in Xcode at least once. Results are limited to the project's own code by default; pass includeDependencies to other tools to search Swift packages and Pods too. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/findImplementations. Call refreshIndex after a build to pick up changes.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
                             "workspacePath": .object([
                                 "type": .string("string"),
-                                "description": .string("Absolute path to the .xcworkspace, .xcodeproj, or Swift Package directory"),
+                                "description": .string("Absolute path to the .xcworkspace, .xcodeproj, or Swift Package directory. Optional: defaults to the project in the server's working directory."),
                             ]),
                         ]),
-                        "required": .array([.string("workspacePath")]),
+                        "required": .array([]),
                     ])
                 ),
                 Tool(
@@ -57,6 +57,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "includeStale": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include matches whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
+                            "includeDependencies": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
                             ]),
                         ]),
                         "required": .array([.string("name")]),
@@ -99,6 +103,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "includeStale": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include matches whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
+                            "includeDependencies": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
                             ]),
                         ]),
                         "required": .array([.string("pattern")]),
@@ -157,6 +165,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("boolean"),
                                 "description": .string("If true, include occurrences whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
                             ]),
+                            "includeDependencies": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                            ]),
                         ]),
                         "required": .array([.string("usr")]),
                     ])
@@ -184,6 +196,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                                 "type": .string("boolean"),
                                 "description": .string("If true, include occurrences whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
                             ]),
+                            "includeDependencies": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                            ]),
                         ]),
                         "required": .array([.string("usr")]),
                     ])
@@ -205,6 +221,10 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "includeStale": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include implementations whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
+                            "includeDependencies": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),

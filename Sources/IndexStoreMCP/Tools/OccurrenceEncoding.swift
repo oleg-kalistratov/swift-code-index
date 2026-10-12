@@ -15,12 +15,15 @@ func compactJSON(_ object: Any) throws -> String {
     return "[\n" + (try array.map(encode)).joined(separator: ",\n") + "\n]"
 }
 
-/// Serialises `object` with `compactJSON` and, when `systemCount > 0`
-/// or `staleCount > 0`, appends a note explaining what was excluded.
-func formatOccurrenceJSON(_ object: Any, systemCount: Int, staleCount: Int = 0) throws -> String {
+/// Serialises `object` with `compactJSON` and, when `systemCount`, `dependencyCount`
+/// or `staleCount` is above zero, appends a note explaining what was excluded.
+func formatOccurrenceJSON(_ object: Any, systemCount: Int, dependencyCount: Int = 0, staleCount: Int = 0) throws -> String {
     var text = try compactJSON(object)
     if systemCount > 0 {
         text += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
+    }
+    if dependencyCount > 0 {
+        text += "\n\nNote: \(dependencyCount) occurrence(s) in dependencies (Swift packages, Pods, Carthage) excluded. Pass includeDependencies: true to include them."
     }
     if staleCount > 0 {
         text += "\n\nNote: \(staleCount) stale occurrence(s) excluded (source file deleted/renamed, dropped from the build, or edited since last indexed). Run refreshIndex, or rebuild the project, to pick up current data. Pass includeStale: true to include them."

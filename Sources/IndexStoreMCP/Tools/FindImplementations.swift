@@ -3,9 +3,11 @@ import MCP
 import Foundation
 
 func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) async throws -> CallTool.Result {
-    guard let database = await indexStore.database else {
+    guard let context = await indexStore.indexContext else {
         return .failure("No index loaded. Call loadIndex first.")
     }
+    let database = context.database
+    let scope = ProjectScope(workspacePath: context.workspacePath)
 
     guard let usr = args["usr"]?.stringValue else {
         return .failure("Missing required argument: usr")
@@ -13,6 +15,7 @@ func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) 
 
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
+    let includeDependencies = args["includeDependencies"]?.boolValue ?? false
 
     // A type's `: P` clause is an occurrence of P whose baseOf relation names the
     // conforming or inheriting type (or the extension that adds the conformance).
@@ -23,7 +26,8 @@ func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) 
 
     let all = (conformances + overrides).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
-    let results = nonSystem
+    let inProject = nonSystem.filter { includeDependencies || scope.contains($0.location.path) }
+    let results = inProject
         .filter { includeStale || !$0.isStale(in: database) }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
 
@@ -32,7 +36,7 @@ func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) 
     }
 
     let items: [[String: String]] = results.map { $0.toImplementationDict(of: usr) }
-    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, staleCount: nonSystem.count - results.count)
+    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, staleCount: inProject.count - results.count)
     return .success(output)
 }
 
