@@ -12,7 +12,8 @@ enum AgentInstructions {
     Workflow:
     1. Call `loadIndex` once per session with the .xcworkspace, .xcodeproj, or package directory.
     2. `searchSymbol` (exact name) or `searchSymbolPattern` (partial name) to get a USR.
-    3. `getOccurrences` / `relatedOccurrences` with the USR to find usages and conformances.
+    3. `getOccurrences` with the USR to find usages and callers; `findImplementations` to find
+       conforming types and implementing members; `relatedOccurrences` for members and extensions.
     4. `symbolAtPosition` to get the USR at a file position; `symbolsInFile` for a file outline.
     5. `refreshIndex` after a build.
 

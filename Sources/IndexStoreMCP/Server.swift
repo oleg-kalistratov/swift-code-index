@@ -16,6 +16,7 @@ enum ToolName: String {
     case symbolAtPosition
     case getOccurrences
     case relatedOccurrences
+    case findImplementations
     case symbolsInFile
     case refreshIndex
 }
@@ -158,7 +159,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.relatedOccurrences.rawValue,
-                    description: "Find structural relationships for a symbol by USR: protocol conformances, method overrides, type extensions. Answers \"what will break if I change this?\" — use it before refactoring a protocol, base class, or overridable method so every conforming type and override is found.",
+                    description: "Find structural relationships for a symbol by USR: its members, the protocols and superclasses it builds on, the requirements it satisfies, and its extensions. To list the types that conform to a protocol or subclass a class, or the members that implement a requirement, use findImplementations instead.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -178,6 +179,28 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             "includeStale": .object([
                                 "type": .string("boolean"),
                                 "description": .string("If true, include occurrences whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
+                            ]),
+                        ]),
+                        "required": .array([.string("usr")]),
+                    ])
+                ),
+                Tool(
+                    name: ToolName.findImplementations.rawValue,
+                    description: "List what implements a symbol, given its USR: for a protocol or class, every type that conforms to or inherits from it (including extensions that add the conformance); for a protocol requirement or overridable method, every member that implements or overrides it. Answers \"who implements this protocol?\" and \"what will break if I change this requirement?\" in one call. Types in test targets appear only after the tests were built.",
+                    inputSchema: .object([
+                        "type": .string("object"),
+                        "properties": .object([
+                            "usr": .object([
+                                "type": .string("string"),
+                                "description": .string("USR of a protocol, class, protocol requirement, or overridable method, from searchSymbol or symbolAtPosition"),
+                            ]),
+                            "includeSystem": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include implementations in system frameworks (UIKit, Foundation, etc.). Defaults to false."),
+                            ]),
+                            "includeStale": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, include implementations whose source file was deleted/renamed, dropped from the build, or edited since last indexed. Defaults to false."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),
@@ -240,6 +263,8 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             return try await handleGetOccurrences(args, indexStore: indexStore)
         case .relatedOccurrences:
             return try await handleRelatedOccurrences(args, indexStore: indexStore)
+        case .findImplementations:
+            return try await handleFindImplementations(args, indexStore: indexStore)
         case .symbolsInFile:
             return try await handleSymbolsInFile(args, indexStore: indexStore)
         case .refreshIndex:

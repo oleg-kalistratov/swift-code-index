@@ -12,7 +12,7 @@ Built on Apple's [IndexStoreDB](https://github.com/swiftlang/indexstore-db) libr
 ## When is this useful?
 
 - **Large codebases** where `grep` returns too much noise. Symbol lookup by USR is exact — no false matches from comments, strings, or similarly named symbols.
-- **Refactoring** — find all protocol conformances, method overrides, and extensions before changing a type or interface. `relatedOccurrences` answers "what will break?" in one call.
+- **Refactoring** — find all protocol conformances, method overrides, and extensions before changing a type or interface. `findImplementations` lists every conforming type or implementing member in one call; `relatedOccurrences` covers members and extensions.
 - **Navigating unfamiliar code** — agents can trace call graphs and jump between definitions and references the same way a developer uses Cmd+Click in Xcode, instead of guessing at file structure.
 - **Reducing context window usage** — `symbolsInFile` returns a structural outline (names, kinds, line numbers) without reading the entire source file. For large files this keeps the agent's context focused.
 - **Cross-dependency navigation** — the index includes symbols from your project's Swift package dependencies, not just your own source files.

@@ -47,7 +47,7 @@ done <<<"$out"
 
 grep -q '"name":"index-store-mcp"' <<<"$out" || fail "server did not identify as index-store-mcp"
 for tool in loadIndex searchSymbol searchSymbolPattern symbolAtPosition \
-            getOccurrences relatedOccurrences symbolsInFile refreshIndex; do
+            getOccurrences relatedOccurrences findImplementations symbolsInFile refreshIndex; do
   grep -q "\"name\":\"$tool\"" <<<"$out" || fail "tool missing from tools/list: $tool"
 done
 echo "OK: $bin"
