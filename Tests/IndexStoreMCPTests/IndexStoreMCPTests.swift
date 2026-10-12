@@ -169,6 +169,35 @@ struct SearchSymbolTests {
     }
 }
 
+// MARK: - searchSymbolPattern
+
+@Suite("searchSymbolPattern")
+struct SearchSymbolPatternTests {
+    /// A short subsequence pattern matched 120,000 characters of symbols in a large
+    /// app; the result is capped and says how many matches were left out.
+    @Test func capsResultsAndReportsTheRest() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbolPattern(
+            ["pattern": .string("e"), "limit": .int(3)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        let rows = result.text.components(separatedBy: "\n").filter { $0.hasPrefix("{") }
+        #expect(rows.count == 3)
+        #expect(result.text.contains("Note: showing 3 of"))
+    }
+
+    @Test func ranksClosestNameFirst() async throws {
+        let store = try await loadedIndexStore()
+        let result = try await handleSearchSymbolPattern(
+            ["pattern": .string("IndexStore"), "anchorStart": .bool(true), "limit": .int(1)],
+            indexStore: store
+        )
+        #expect(!result.isFailure)
+        #expect(result.text.contains("\"name\":\"IndexStore\""))
+    }
+}
+
 // MARK: - symbolAtPosition
 
 @Suite("symbolAtPosition")

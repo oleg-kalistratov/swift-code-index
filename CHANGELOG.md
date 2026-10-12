@@ -17,6 +17,9 @@ All notable changes to this project are documented here. The format follows
 - `symbolsInFile` leaves out parameters and compiler-synthesized members, and
   omits USRs and roles unless asked (`includeUSR`, an explicit `roles` filter).
   On a 4,400-line file the outline went from 172,685 to 35,338 characters.
+- `searchSymbolPattern` returns at most `limit` matches (default 50), shortest
+  names first, and notes how many were left out. A short pattern on a large app
+  went from 120,453 to 21,077 characters.
 
 ## [0.1.0] - 2026-10-05
 

@@ -64,13 +64,17 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                 ),
                 Tool(
                     name: ToolName.searchSymbolPattern.rawValue,
-                    description: "Fuzzy symbol search for when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include dependencies; use anchorStart/anchorEnd and longer patterns to narrow them. Returns USRs for getOccurrences or relatedOccurrences.",
+                    description: "Fuzzy symbol search for when searchSymbol returns no results or you only know a partial name. Performs subsequence matching — e.g. 'mvc' matches 'MyViewController'. Results may include dependencies; use anchorStart/anchorEnd and longer patterns to narrow them. Returns at most `limit` matches (default 50), shortest names first, and says how many were left out. Returns USRs for getOccurrences or relatedOccurrences.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
                             "pattern": .object([
                                 "type": .string("string"),
                                 "description": .string("Partial or full symbol name to search for. Subsequence matching is on by default: 'mvc' finds 'MyViewController'."),
+                            ]),
+                            "limit": .object([
+                                "type": .string("integer"),
+                                "description": .string("Maximum number of matches to return. Defaults to 50."),
                             ]),
                             "anchorStart": .object([
                                 "type": .string("boolean"),
