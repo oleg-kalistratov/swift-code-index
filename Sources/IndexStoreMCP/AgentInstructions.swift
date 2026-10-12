@@ -19,7 +19,7 @@ enum AgentInstructions {
     5. `refreshIndex` after a build.
 
     Results cover the project's own code; pass includeDependencies to search Swift packages
-    and Pods as well. Fall back to grep for non-symbol text such as strings, comments, and
+    and Pods as well. Rows from test code are marked "test": true; pass excludeTests to drop them. Fall back to grep for non-symbol text such as strings, comments, and
     config files.
     """
 }

@@ -100,6 +100,25 @@ The server finds DerivedData automatically by checking:
 
 It keeps its own lookup database in `~/Library/Caches/index-store-mcp`.
 
+## Project configuration
+
+Results cover the project's own code: files under the folder that holds the `.xcworkspace`, `.xcodeproj` or `Package.swift`, minus `Pods/`, `Carthage/` and `.build/`. Swift packages that Xcode resolves into DerivedData count as dependencies. Every search tool takes `includeDependencies: true` to search them too, and notes how many results it left out.
+
+Results from test code carry `"test": true`, and `excludeTests: true` drops them. Test code is a module named `…Tests`, or a file in a folder named `…Tests`, `Mocks`, `Fakes`, `Stubs`, `TestSupport` or `TestHelpers`.
+
+To adjust either rule, add an optional `.swift-code-index.json` to the project root:
+
+```json
+{
+  "exclude": ["Generated/**", "*.generated.swift"],
+  "tests": ["**/Fixtures/**"]
+}
+```
+
+Patterns are relative to the project root and follow `.gitignore` rules: `*` stays within a folder, `**` spans folders, a trailing `/` covers a whole folder, and a pattern without a `/` matches a file name anywhere. `loadIndex` reports the file it read, or what is wrong with it; a broken file falls back to the defaults.
+
+The index holds symbol names and locations, never the values of string literals, so a key compiled into the app cannot reach the agent through these tools. Files that are not compiled — `.xcconfig`, `.env`, certificates — are not in the index at all.
+
 ## Troubleshooting
 
 - **"No DerivedData found"** — build the project in Xcode (Cmd+B) at least once, then call `loadIndex` again.

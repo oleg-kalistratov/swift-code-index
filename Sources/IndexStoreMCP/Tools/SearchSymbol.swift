@@ -16,17 +16,19 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     let includeDependencies = args["includeDependencies"]?.boolValue ?? false
+    let excludeTests = args["excludeTests"]?.boolValue ?? false
     
     var all = database.canonicalOccurrences(ofName: name).uniqued()
     var nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     var inProject = nonSystem.filter { includeDependencies || scope.contains($0.location.path) }
-    var results = inProject.filter { includeStale || !$0.isStale(in: database) }
+    var inScope = inProject.filter { !excludeTests || !scope.isTest($0) }
+    var results = inScope.filter { includeStale || !$0.isStale(in: database) }
     
     // Exact match failed (or was entirely stale) — try prefix match to handle
     // bare method names (e.g. "reserveLoading" → "reserveLoading(workspacePath:)").
-    // An exact match that exists only in dependencies is still an answer: report
-    // it as excluded rather than widening the search past it.
-    if results.isEmpty && inProject.count == nonSystem.count {
+    // An exact match that exists only in dependencies or tests is still an answer:
+    // report it as excluded rather than widening the search past it.
+    if results.isEmpty && inScope.count == nonSystem.count {
         all = database.canonicalOccurrences(
             containing: name,
             anchorStart: true,
@@ -36,14 +38,15 @@ func handleSearchSymbol(_ args: [String: Value], indexStore: IndexStore) async t
         ).uniqued()
         nonSystem = all.filter { includeSystem || !$0.location.isSystem }
         inProject = nonSystem.filter { includeDependencies || scope.contains($0.location.path) }
-        results = inProject.filter { includeStale || !$0.isStale(in: database) }
+        inScope = inProject.filter { !excludeTests || !scope.isTest($0) }
+        results = inScope.filter { includeStale || !$0.isStale(in: database) }
         
-        if results.isEmpty && inProject.count == nonSystem.count {
+        if results.isEmpty && inScope.count == nonSystem.count {
             return .success("No match found for '\(name)'. Try searchSymbolPattern with a partial name.")
         }
     }
     
-    let items: [[String: String]] = results.map { $0.toCanonicalDict() }
-    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, staleCount: inProject.count - results.count)
+    let items: [[String: String]] = results.map { $0.toCanonicalDict(inTests: scope.isTest($0)) }
+    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, testCount: inProject.count - inScope.count, staleCount: inScope.count - results.count)
     return .success(output)
 }

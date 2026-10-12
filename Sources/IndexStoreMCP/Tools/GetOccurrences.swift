@@ -22,11 +22,13 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     let includeDependencies = args["includeDependencies"]?.boolValue ?? false
+    let excludeTests = args["excludeTests"]?.boolValue ?? false
     
     let all = database.occurrences(ofUSR: usr, roles: roles).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     let inProject = nonSystem.filter { includeDependencies || scope.contains($0.location.path) }
-    let results = inProject
+    let inScope = inProject.filter { !excludeTests || !scope.isTest($0) }
+    let results = inScope
         .filter { includeStale || !$0.isStale(in: database) }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
     
@@ -34,8 +36,8 @@ func handleGetOccurrences(_ args: [String: Value], indexStore: IndexStore) async
         return .success("No occurrences found for this USR. Verify the USR is correct using searchSymbol.")
     }
     
-    let occurrenceList: [[String: Any]] = results.map { $0.toDetailedDict() }
+    let occurrenceList: [[String: Any]] = results.map { $0.toDetailedDict(inTests: scope.isTest($0)) }
     
-    let output = try formatOccurrenceJSON(occurrenceList, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, staleCount: inProject.count - results.count)
+    let output = try formatOccurrenceJSON(occurrenceList, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, testCount: inProject.count - inScope.count, staleCount: inScope.count - results.count)
     return .success(output)
 }

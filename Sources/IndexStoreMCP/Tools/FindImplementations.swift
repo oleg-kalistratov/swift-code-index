@@ -16,6 +16,7 @@ func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) 
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     let includeDependencies = args["includeDependencies"]?.boolValue ?? false
+    let excludeTests = args["excludeTests"]?.boolValue ?? false
 
     // A type's `: P` clause is an occurrence of P whose baseOf relation names the
     // conforming or inheriting type (or the extension that adds the conformance).
@@ -27,7 +28,8 @@ func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) 
     let all = (conformances + overrides).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     let inProject = nonSystem.filter { includeDependencies || scope.contains($0.location.path) }
-    let results = inProject
+    let inScope = inProject.filter { !excludeTests || !scope.isTest($0) }
+    let results = inScope
         .filter { includeStale || !$0.isStale(in: database) }
         .sorted { ($0.location.path, $0.location.line) < ($1.location.path, $1.location.line) }
 
@@ -35,8 +37,8 @@ func handleFindImplementations(_ args: [String: Value], indexStore: IndexStore) 
         return .success("No implementations found. Pass the USR of a protocol, class, protocol requirement, or overridable method (from searchSymbol). Types in test targets appear only after the tests were built.")
     }
 
-    let items: [[String: String]] = results.map { $0.toImplementationDict(of: usr) }
-    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, staleCount: inProject.count - results.count)
+    let items: [[String: String]] = results.map { $0.toImplementationDict(of: usr, inTests: scope.isTest($0)) }
+    let output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, testCount: inProject.count - inScope.count, staleCount: inScope.count - results.count)
     return .success(output)
 }
 
@@ -46,7 +48,7 @@ extension SymbolOccurrence {
     /// the implementer is the symbol on the other end of its baseOf relation; for an
     /// override the occurrence is the implementing member itself.
     /// Keys: usr, name, kind, location ("path:line"), subKind (when present).
-    func toImplementationDict(of usr: String) -> [String: String] {
+    func toImplementationDict(of usr: String, inTests: Bool = false) -> [String: String] {
         let implementer = relations.first { $0.roles.contains(.baseOf) && symbol.usr == usr }?.symbol ?? symbol
         var dict: [String: String] = [
             "usr":      implementer.usr,
@@ -56,6 +58,9 @@ extension SymbolOccurrence {
         ]
         if implementer.subKind != .none {
             dict["subKind"] = String(describing: implementer.subKind)
+        }
+        if inTests {
+            dict["test"] = "true"
         }
         return dict
     }

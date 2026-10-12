@@ -15,15 +15,18 @@ func compactJSON(_ object: Any) throws -> String {
     return "[\n" + (try array.map(encode)).joined(separator: ",\n") + "\n]"
 }
 
-/// Serialises `object` with `compactJSON` and, when `systemCount`, `dependencyCount`
-/// or `staleCount` is above zero, appends a note explaining what was excluded.
-func formatOccurrenceJSON(_ object: Any, systemCount: Int, dependencyCount: Int = 0, staleCount: Int = 0) throws -> String {
+/// Serialises `object` with `compactJSON` and, when `systemCount`, `dependencyCount`,
+/// `testCount` or `staleCount` is above zero, appends a note explaining what was excluded.
+func formatOccurrenceJSON(_ object: Any, systemCount: Int, dependencyCount: Int = 0, testCount: Int = 0, staleCount: Int = 0) throws -> String {
     var text = try compactJSON(object)
     if systemCount > 0 {
         text += "\n\nNote: \(systemCount) system framework occurrence(s) excluded. Pass includeSystem: true to include them."
     }
     if dependencyCount > 0 {
-        text += "\n\nNote: \(dependencyCount) occurrence(s) in dependencies (Swift packages, Pods, Carthage) excluded. Pass includeDependencies: true to include them."
+        text += "\n\nNote: \(dependencyCount) occurrence(s) outside the project's own code excluded (Swift packages, Pods, Carthage, or paths excluded in .swift-code-index.json). Pass includeDependencies: true to include them."
+    }
+    if testCount > 0 {
+        text += "\n\nNote: \(testCount) occurrence(s) in test code excluded. Omit excludeTests to include them."
     }
     if staleCount > 0 {
         text += "\n\nNote: \(staleCount) stale occurrence(s) excluded (source file deleted/renamed, dropped from the build, or edited since last indexed). Run refreshIndex, or rebuild the project, to pick up current data. Pass includeStale: true to include them."
@@ -112,7 +115,7 @@ extension SymbolOccurrence {
     /// Compact dict for canonical symbol lookups (one result per USR).
     /// Keys: usr, name, kind, location ("path:line"), subKind (when present).
     /// Used by SearchSymbol and SearchSymbolPattern.
-    func toCanonicalDict() -> [String: String] {
+    func toCanonicalDict(inTests: Bool = false) -> [String: String] {
         var dict: [String: String] = [
             "usr":      symbol.usr,
             "name":     symbol.name,
@@ -122,6 +125,9 @@ extension SymbolOccurrence {
         if symbol.subKind != .none {
             dict["subKind"] = String(describing: symbol.subKind)
         }
+        if inTests {
+            dict["test"] = "true"
+        }
         return dict
     }
     
@@ -129,7 +135,7 @@ extension SymbolOccurrence {
     /// Keys: file, line, column, role, name, kind, subKind (when present),
     ///       relations (when non-empty).
     /// Used by GetOccurrences and RelatedOccurrences.
-    func toDetailedDict() -> [String: Any] {
+    func toDetailedDict(inTests: Bool = false) -> [String: Any] {
         var dict: [String: Any] = [
             "file":   location.path,
             "line":   location.line,
@@ -150,6 +156,9 @@ extension SymbolOccurrence {
                     "role": String(describing: relation.roles),
                 ]
             }
+        }
+        if inTests {
+            dict["test"] = true
         }
         return dict
     }
