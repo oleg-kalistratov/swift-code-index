@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag matching BuildInfo.version (e.g. v0.1.0) to publish a GitHub release
-# with the arm64 binary. The Homebrew formula for it is printed to the job summary.
+# Push a tag matching BuildInfo.version (e.g. v0.2.0) to publish a GitHub release
+# with the arm64 binary and its SHA-256.
 on:
   push:
     tags: ['v*']
@@ -54,7 +54,6 @@ jobs:
           tar -czf "dist/$name.tar.gz" -C "dist/$name" .
           (cd dist && shasum -a 256 "$name.tar.gz" >"$name.tar.gz.sha256")
           echo "TARBALL=dist/$name.tar.gz" >>"$GITHUB_ENV"
-          echo "SHA256=$(cut -d' ' -f1 "dist/$name.tar.gz.sha256")" >>"$GITHUB_ENV"
 
       - name: Publish GitHub release
         env:
@@ -63,13 +62,3 @@ jobs:
           awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md >notes.md
           gh release create "$GITHUB_REF_NAME" "$TARBALL" "$TARBALL.sha256" \
             --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
-
-      - name: Homebrew formula
-        run: |
-          {
-            echo "### Homebrew formula"
-            echo "Copy to \`Formula/index-store-mcp.rb\` in \`hrdkp/homebrew-tap\`:"
-            echo '```ruby'
-            scripts/render-formula.sh "$VERSION" "$SHA256"
-            echo '```'
-          } >>"$GITHUB_STEP_SUMMARY"

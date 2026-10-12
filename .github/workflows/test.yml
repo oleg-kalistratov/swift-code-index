@@ -23,7 +23,13 @@ jobs:
             -quiet
 
       - name: Run tests
-        run: swift test
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee test-output.log
+
+      - name: Test summary
+        if: always()
+        run: scripts/test-summary.sh test-output.log >>"$GITHUB_STEP_SUMMARY"
 
       - name: Check libIndexStore floor and ceiling
         run: scripts/check-libindexstore.sh
