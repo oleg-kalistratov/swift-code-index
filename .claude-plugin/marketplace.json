@@ -1,0 +1,15 @@
+{
+  "name": "swift-code-index",
+  "description": "Claude Code plugin for exact Swift and Objective-C code navigation from Xcode's index.",
+  "owner": {
+    "name": "Oleg Kalistratov",
+    "url": "https://github.com/oleg-kalistratov"
+  },
+  "plugins": [
+    {
+      "name": "swift-code-index",
+      "source": ".",
+      "description": "Exact Swift and Objective-C navigation for agents from Xcode's own index: definitions, callers, protocol implementations, file outlines. Runs locally in a sandbox with no network access."
+    }
+  ]
+}

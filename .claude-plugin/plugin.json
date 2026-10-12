@@ -1,0 +1,18 @@
+{
+  "name": "swift-code-index",
+  "description": "Exact Swift and Objective-C navigation for agents from Xcode's own index: definitions, callers, protocol implementations, file outlines. Runs locally in a sandbox with no network access.",
+  "author": {
+    "name": "Oleg Kalistratov",
+    "url": "https://github.com/oleg-kalistratov"
+  },
+  "homepage": "https://github.com/oleg-kalistratov/swift-code-index",
+  "repository": "https://github.com/oleg-kalistratov/swift-code-index",
+  "license": "MIT",
+  "keywords": ["swift", "objective-c", "xcode", "ios", "mcp", "code-navigation", "index-store"],
+  "mcpServers": {
+    "swift-code-index": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/plugin/launch.sh",
+      "args": ["${CLAUDE_PROJECT_DIR}"]
+    }
+  }
+}

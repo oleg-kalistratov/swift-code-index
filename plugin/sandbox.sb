@@ -1,0 +1,14 @@
+;; macOS sandbox profile for the swift-code-index MCP server (see launch.sh).
+;; The server reads Xcode's index, source files and the selected Xcode; it never
+;; needs the network, and it writes only its index cache and temporary files.
+;; The MCP SDK links networking code it does not use here, so the network is
+;; closed at the operating-system level rather than trusted to stay unused.
+(version 1)
+(allow default)
+(deny network*)
+(deny file-write*)
+(allow file-write*
+    (subpath (param "CACHE_DIR"))
+    (subpath (param "TMP_DIR"))
+    (literal "/dev/null")
+    (literal "/dev/dtracehelper"))

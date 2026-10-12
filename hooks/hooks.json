@@ -1,0 +1,16 @@
+{
+  "description": "Build the MCP server from the plugin's sources in the background, once per plugin version.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/plugin/build.sh\"",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
