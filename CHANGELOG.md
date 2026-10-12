@@ -7,6 +7,12 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Results from test code are marked `"test": true`, and every search tool takes
+  `excludeTests`. Test code is a `…Tests` module or a file in a `…Tests`,
+  `Mocks`, `Fakes`, `Stubs`, `TestSupport` or `TestHelpers` folder.
+- Optional `.swift-code-index.json` in the project root with `exclude` and
+  `tests` path patterns (`.gitignore`-style). `loadIndex` reports the file, or
+  the problem with it and falls back to the defaults.
 - `loadIndex` works without `workspacePath`: it loads the project in the
   server's working directory, preferring an `.xcworkspace`, then an
   `.xcodeproj`, then a Swift package, and picks the first one Xcode has built.

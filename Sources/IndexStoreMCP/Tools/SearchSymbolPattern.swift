@@ -20,6 +20,7 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
     let includeSystem = args["includeSystem"]?.boolValue ?? false
     let includeStale = args["includeStale"]?.boolValue ?? false
     let includeDependencies = args["includeDependencies"]?.boolValue ?? false
+    let excludeTests = args["excludeTests"]?.boolValue ?? false
     let limit = max(1, args["limit"]?.intValue ?? 50)
     
     let all = database.canonicalOccurrences(
@@ -31,15 +32,16 @@ func handleSearchSymbolPattern(_ args: [String: Value], indexStore: IndexStore) 
     ).uniqued()
     let nonSystem = all.filter { includeSystem || !$0.location.isSystem }
     let inProject = nonSystem.filter { includeDependencies || scope.contains($0.location.path) }
+    let inScope = inProject.filter { !excludeTests || !scope.isTest($0) }
     // Shortest names first: with subsequence matching on, the closest match to the
     // pattern is the one with the fewest extra characters.
-    let results = inProject
+    let results = inScope
         .filter { includeStale || !$0.isStale(in: database) }
         .sorted { ($0.symbol.name.count, $0.symbol.name, $0.location.path) < ($1.symbol.name.count, $1.symbol.name, $1.location.path) }
     let shown = results.prefix(limit)
     
-    let items: [[String: String]] = shown.map { $0.toCanonicalDict() }
-    var output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, staleCount: inProject.count - results.count)
+    let items: [[String: String]] = shown.map { $0.toCanonicalDict(inTests: scope.isTest($0)) }
+    var output = try formatOccurrenceJSON(items, systemCount: all.count - nonSystem.count, dependencyCount: nonSystem.count - inProject.count, testCount: inProject.count - inScope.count, staleCount: inScope.count - results.count)
     if shown.count < results.count {
         output += "\n\nNote: showing \(shown.count) of \(results.count) matches, shortest names first. Use a longer pattern, anchorStart/anchorEnd, or a higher limit."
     }

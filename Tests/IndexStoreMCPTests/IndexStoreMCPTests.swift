@@ -193,6 +193,117 @@ struct ProjectScopeTests {
     }
 }
 
+// MARK: - glob
+
+@Suite("glob")
+struct GlobTests {
+    @Test func doubleStarCrossesFolders() throws {
+        let glob = try #require(Glob("Generated/**"))
+        #expect(glob.matches("Generated/a/b.swift"))
+        #expect(!glob.matches("Sources/Generated/b.swift"))
+    }
+
+    @Test func leadingDoubleStarMatchesAtAnyDepth() throws {
+        let glob = try #require(Glob("**/Generated/**"))
+        #expect(glob.matches("Generated/x.swift"))
+        #expect(glob.matches("App/Generated/x.swift"))
+    }
+
+    /// As in .gitignore: a pattern without a slash names a file anywhere.
+    @Test func patternWithoutSlashMatchesAtAnyDepth() throws {
+        let glob = try #require(Glob("*Mock*.swift"))
+        #expect(glob.matches("Sources/Mocks/ServiceMock.swift"))
+        #expect(glob.matches("ServiceMock.swift"))
+        #expect(!glob.matches("Sources/Service.swift"))
+    }
+
+    @Test func singleStarStaysInOneFolder() throws {
+        let glob = try #require(Glob("Sources/*.swift"))
+        #expect(glob.matches("Sources/a.swift"))
+        #expect(!glob.matches("Sources/x/a.swift"))
+    }
+
+    @Test func trailingSlashMatchesEverythingInside() throws {
+        let glob = try #require(Glob("Vendor/"))
+        #expect(glob.matches("Vendor/x/y.swift"))
+        #expect(!glob.matches("VendorKit/y.swift"))
+    }
+
+    @Test func dotsAreLiteral() throws {
+        let glob = try #require(Glob("a.swift"))
+        #expect(!glob.matches("abswift"))
+    }
+}
+
+// MARK: - project configuration
+
+private func temporaryProject(configuration: String?) throws -> URL {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).standardizedFileURL
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    if let configuration {
+        try Data(configuration.utf8).write(to: dir.appendingPathComponent(".swift-code-index.json"))
+    }
+    return dir
+}
+
+@Suite("project configuration")
+struct ProjectConfigurationTests {
+    @Test func excludedPathsAreNotProjectCode() throws {
+        let dir = try temporaryProject(configuration: #"{"exclude": ["Generated/**"]}"#)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let scope = ProjectScope(workspacePath: dir.path)
+        #expect(scope.contains(dir.appendingPathComponent("Sources/A.swift").path))
+        #expect(!scope.contains(dir.appendingPathComponent("Generated/A.swift").path))
+        #expect(scope.configurationProblem == nil)
+    }
+
+    @Test func configuredTestPathsCountAsTests() throws {
+        let dir = try temporaryProject(configuration: #"{"tests": ["**/Fixtures/**"]}"#)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let scope = ProjectScope(workspacePath: dir.path)
+        #expect(scope.isTest(path: dir.appendingPathComponent("App/Fixtures/F.swift").path, moduleName: "App"))
+        #expect(!scope.isTest(path: dir.appendingPathComponent("App/F.swift").path, moduleName: "App"))
+    }
+
+    /// A broken file must not silently change results: the problem is reported
+    /// and the defaults apply.
+    @Test func reportsAnUnreadableConfiguration() throws {
+        let dir = try temporaryProject(configuration: "{ not json")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let scope = ProjectScope(workspacePath: dir.path)
+        #expect(scope.configurationProblem?.contains(".swift-code-index.json") == true)
+        #expect(scope.contains(dir.appendingPathComponent("Sources/A.swift").path))
+    }
+
+    @Test func missingConfigurationIsNotAProblem() throws {
+        let dir = try temporaryProject(configuration: nil)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(ProjectScope(workspacePath: dir.path).configurationProblem == nil)
+    }
+}
+
+// MARK: - test code detection
+
+@Suite("test code detection")
+struct TestCodeDetectionTests {
+    private let scope = ProjectScope(workspacePath: "/p/App.xcworkspace")
+
+    @Test func testTargetsByModuleName() {
+        #expect(scope.isTest(path: "/p/Sources/X.swift", moduleName: "AppTests"))
+    }
+
+    @Test func testAndMockFoldersByName() {
+        #expect(scope.isTest(path: "/p/Modules/Camera/Tests/Doubles/Fake.swift", moduleName: "Camera"))
+        #expect(scope.isTest(path: "/p/Modules/Camera/CameraUITests/Flow.swift", moduleName: "Camera"))
+        #expect(scope.isTest(path: "/p/Frameworks/Domain/Sources/Domain/Services/Mocks/ServiceMock.swift", moduleName: "Domain"))
+    }
+
+    @Test func productionCodeIsNotTestCode() {
+        #expect(!scope.isTest(path: "/p/Sources/Contest/Latest.swift", moduleName: "App"))
+        #expect(!scope.isTest(path: "/p/Sources/App/Service.swift", moduleName: "App"))
+    }
+}
+
 // MARK: - dependency filter
 
 /// `Server` is defined in the MCP Swift SDK, a package dependency that Xcode

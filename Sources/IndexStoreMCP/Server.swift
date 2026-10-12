@@ -28,7 +28,7 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
             .init(tools: [
                 Tool(
                     name: ToolName.loadIndex.rawValue,
-                    description: "Start here. Loads the Xcode index so the other tools can answer semantic questions about Swift and Objective-C code: definitions, references, callers, protocol conformances, overrides. Must be called once per session before any other tool. Without workspacePath it loads the project in the server's working directory (its .xcworkspace, else its .xcodeproj, else its Swift package). The project must have been built in Xcode at least once. Results are limited to the project's own code by default; pass includeDependencies to other tools to search Swift packages and Pods too. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/findImplementations. Call refreshIndex after a build to pick up changes.",
+                    description: "Start here. Loads the Xcode index so the other tools can answer semantic questions about Swift and Objective-C code: definitions, references, callers, protocol conformances, overrides. Must be called once per session before any other tool. Without workspacePath it loads the project in the server's working directory (its .xcworkspace, else its .xcodeproj, else its Swift package). The project must have been built in Xcode at least once. Results are limited to the project's own code by default; pass includeDependencies to other tools to search Swift packages and Pods too. Results from test code are marked \"test\": true. An optional .swift-code-index.json in the project root adds \"exclude\" and \"tests\" path patterns. Typical workflow: loadIndex → searchSymbol/searchSymbolPattern → getOccurrences/findImplementations. Call refreshIndex after a build to pick up changes.",
                     inputSchema: .object([
                         "type": .string("object"),
                         "properties": .object([
@@ -60,7 +60,11 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             ]),
                             "includeDependencies": .object([
                                 "type": .string("boolean"),
-                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                                "description": .string("If true, include results outside the project's own code: Swift packages, Pods, Carthage checkouts, and paths excluded in .swift-code-index.json. Defaults to false."),
+                            ]),
+                            "excludeTests": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, leave out test code: test targets (modules named …Tests), folders named …Tests, Mocks, Fakes, Stubs, TestSupport or TestHelpers, and tests patterns in .swift-code-index.json. Defaults to false; results from test code are marked \"test\": true either way."),
                             ]),
                         ]),
                         "required": .array([.string("name")]),
@@ -106,7 +110,11 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             ]),
                             "includeDependencies": .object([
                                 "type": .string("boolean"),
-                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                                "description": .string("If true, include results outside the project's own code: Swift packages, Pods, Carthage checkouts, and paths excluded in .swift-code-index.json. Defaults to false."),
+                            ]),
+                            "excludeTests": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, leave out test code: test targets (modules named …Tests), folders named …Tests, Mocks, Fakes, Stubs, TestSupport or TestHelpers, and tests patterns in .swift-code-index.json. Defaults to false; results from test code are marked \"test\": true either way."),
                             ]),
                         ]),
                         "required": .array([.string("pattern")]),
@@ -167,7 +175,11 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             ]),
                             "includeDependencies": .object([
                                 "type": .string("boolean"),
-                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                                "description": .string("If true, include results outside the project's own code: Swift packages, Pods, Carthage checkouts, and paths excluded in .swift-code-index.json. Defaults to false."),
+                            ]),
+                            "excludeTests": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, leave out test code: test targets (modules named …Tests), folders named …Tests, Mocks, Fakes, Stubs, TestSupport or TestHelpers, and tests patterns in .swift-code-index.json. Defaults to false; results from test code are marked \"test\": true either way."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),
@@ -198,7 +210,11 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             ]),
                             "includeDependencies": .object([
                                 "type": .string("boolean"),
-                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                                "description": .string("If true, include results outside the project's own code: Swift packages, Pods, Carthage checkouts, and paths excluded in .swift-code-index.json. Defaults to false."),
+                            ]),
+                            "excludeTests": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, leave out test code: test targets (modules named …Tests), folders named …Tests, Mocks, Fakes, Stubs, TestSupport or TestHelpers, and tests patterns in .swift-code-index.json. Defaults to false; results from test code are marked \"test\": true either way."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),
@@ -224,7 +240,11 @@ func registerTools(on server: Server, indexStore: IndexStore) async {
                             ]),
                             "includeDependencies": .object([
                                 "type": .string("boolean"),
-                                "description": .string("If true, include results in dependencies: Swift packages, Pods and Carthage checkouts. Defaults to false, which keeps results to the project's own code."),
+                                "description": .string("If true, include results outside the project's own code: Swift packages, Pods, Carthage checkouts, and paths excluded in .swift-code-index.json. Defaults to false."),
+                            ]),
+                            "excludeTests": .object([
+                                "type": .string("boolean"),
+                                "description": .string("If true, leave out test code: test targets (modules named …Tests), folders named …Tests, Mocks, Fakes, Stubs, TestSupport or TestHelpers, and tests patterns in .swift-code-index.json. Defaults to false; results from test code are marked \"test\": true either way."),
                             ]),
                         ]),
                         "required": .array([.string("usr")]),

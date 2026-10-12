@@ -90,10 +90,14 @@ func handleLoadIndex(
         
         // Report the reader so a stale xcode-select (older reader than the
         // Xcode that wrote the store) is visible to the user and the agent.
-        return .success("""
+        var message = """
             Index loaded: \(storeURL.path)
             libIndexStore: \(libPath) (API \(library.version.major * 10000 + library.version.minor), format \(library.formatVersion))
-            """)
+            """
+        if let configuration = ProjectScope(workspacePath: workspacePath).configurationSummary {
+            message += "\n" + configuration
+        }
+        return .success(message)
     } catch {
         return .failure("Failed to load index: \(error)")
     }
