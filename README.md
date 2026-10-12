@@ -1,9 +1,10 @@
-# index-store-mcp
+# swift-code-index
 
-[![Release](https://img.shields.io/github/v/release/hrdkp/swift-index-store-mcp)](https://github.com/hrdkp/swift-index-store-mcp/releases/latest)
-[![Test](https://github.com/hrdkp/swift-index-store-mcp/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/hrdkp/swift-index-store-mcp/actions/workflows/test.yml)
-[![License](https://img.shields.io/github/license/hrdkp/swift-index-store-mcp)](LICENSE)
+[![Test](https://github.com/oleg-kalistratov/swift-code-index/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/oleg-kalistratov/swift-code-index/actions/workflows/test.yml)
+[![License](https://img.shields.io/github/license/oleg-kalistratov/swift-code-index)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Xcode%2016%2B-blue)
+
+Based on [hrdkp/swift-index-store-mcp](https://github.com/hrdkp/swift-index-store-mcp) (MIT). The server binary keeps its original name, `index-store-mcp`.
 
 An MCP server that gives coding agents semantic code navigation for Xcode projects. Instead of relying on `grep` and file reading, agents can look up symbols by name, find definitions and references by USR, trace protocol conformances and overrides, and get structural outlines of files — the same navigation that Xcode provides via Cmd+Click and Find Usages.
 
@@ -27,67 +28,51 @@ For small projects, `grep` and file reading are usually fast enough. This MCP pa
 
 ## Getting started
 
-### 1. Install
+### Claude Code plugin
 
-```sh
-brew install hrdkp/tap/index-store-mcp
+```
+/plugin marketplace add oleg-kalistratov/swift-code-index
+/plugin install swift-code-index@swift-code-index
 ```
 
-<details>
-<summary><strong>Build from source</strong></summary>
+Or from a shell: `claude plugin marketplace add oleg-kalistratov/swift-code-index`, then `claude plugin install swift-code-index@swift-code-index`.
+
+The plugin builds the server from its own sources on your Mac the first time a session starts, which takes about two minutes and needs the Swift toolchain that comes with Xcode. If you open a session before it finishes, the server reports that it is building; run `/mcp` and reconnect `swift-code-index` a couple of minutes later. Each plugin update rebuilds once, incrementally. The build lives in the plugin's data folder (`~/.claude/plugins/data/…`), with its log in `build.log` there.
+
+The server runs inside a macOS sandbox (`plugin/sandbox.sb`) with no network access and writes limited to its cache in `~/Library/Caches/index-store-mcp`. It works in the project folder Claude Code was started in, so `loadIndex` needs no path. The plugin also ships a `code-index` skill that tells the agent when to use the index instead of `grep`.
+
+**Try it:** build your project in Xcode once, then ask something like "Find every type that conforms to `MyProtocol`."
+
+### Other MCP clients
+
+Build the server from source:
 
 ```sh
-git clone https://github.com/hrdkp/swift-index-store-mcp.git
-cd swift-index-store-mcp
+git clone https://github.com/oleg-kalistratov/swift-code-index.git
+cd swift-code-index
 swift build -c release
 swift build -c release --show-bin-path   # prints the directory containing index-store-mcp
 ```
 
-Use the full path to the built binary in place of `/opt/homebrew/bin/index-store-mcp` below.
-
-</details>
-
-### 2. Add the server to your MCP client
-
-Use the absolute path: GUI apps such as Claude Desktop don't see your shell's `PATH`, so a bare `index-store-mcp` may not be found.
-
-<details>
-<summary><strong>Claude Code</strong></summary>
-
-```sh
-claude mcp add index-store-mcp /opt/homebrew/bin/index-store-mcp
-```
-
-</details>
-
-<details>
-<summary><strong>Claude Desktop / Cursor / other MCP clients</strong></summary>
-
-Add to your MCP configuration file:
+Then add it to your client with the absolute path to the binary. GUI apps such as Claude Desktop don't see your shell's `PATH`.
 
 ```json
 {
   "mcpServers": {
-    "index-store-mcp": {
-      "command": "/opt/homebrew/bin/index-store-mcp"
+    "swift-code-index": {
+      "command": "/absolute/path/to/index-store-mcp"
     }
   }
 }
 ```
 
-To use a different Xcode than the one `xcode-select` points to, add `"env": { "DEVELOPER_DIR": "/Applications/Xcode-16.0.app/Contents/Developer" }`.
+To run it sandboxed as the plugin does, point `command` at `/usr/bin/sandbox-exec` with the arguments `launch.sh` passes. To use a different Xcode than the one `xcode-select` points to, add `"env": { "DEVELOPER_DIR": "/Applications/Xcode-16.0.app/Contents/Developer" }`.
 
-</details>
-
-### 3. Tell your agent to use it
-
-Adding the server makes the tools *available*, but agents often default to `grep` unless told otherwise. From your project's root, append the bundled instructions to its `CLAUDE.md` (or `AGENTS.md`, or your agent's equivalent). Run this once; running it again adds a second copy:
+Agents often default to `grep` unless told otherwise. From your project's root, append the bundled instructions to its `CLAUDE.md` or `AGENTS.md` once:
 
 ```sh
-index-store-mcp --print-agent-instructions >> CLAUDE.md
+/absolute/path/to/index-store-mcp --print-agent-instructions >> AGENTS.md
 ```
-
-**Try it:** build your project in Xcode once, then ask your agent something like "Find every type that conforms to `MyProtocol`." It should call `loadIndex` first, then answer from the index instead of searching with `grep`.
 
 ## How it works
 

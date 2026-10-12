@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Claude Code plugin in the repository itself, which is also its own
+  marketplace: `/plugin marketplace add oleg-kalistratov/swift-code-index`,
+  then `/plugin install swift-code-index@swift-code-index`. A SessionStart hook
+  builds the server from the plugin's sources into the plugin's data folder
+  (about a minute or two, once per plugin version); the server starts in the
+  project folder, so `loadIndex` needs no path; a `code-index` skill tells the
+  agent when to use the index.
+- The plugin runs the server inside a macOS sandbox (`plugin/sandbox.sb`): no
+  network access, writes only to its index cache and temporary files. The MCP
+  SDK links networking code the server does not use.
 - Results from test code are marked `"test": true`, and every search tool takes
   `excludeTests`. Test code is a `…Tests` module or a file in a `…Tests`,
   `Mocks`, `Fakes`, `Stubs`, `TestSupport` or `TestHelpers` folder.
