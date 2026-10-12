@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- `--print-agent-instructions` now tells the agent to use the index only when the
+  swift-code-index tools are available in the session, and to search as usual
+  otherwise, so the snippet can go into a project's shared `CLAUDE.md` or
+  `AGENTS.md` even when not everyone on the team installs the plugin. It also
+  says the index applies inside other workflows and skills: on a large app the
+  agent ignored the plugin's own skill once a team workflow took over the task.
+
 ## [0.2.0] - 2026-10-12
 
 First release as swift-code-index, a fork of hrdkp/swift-index-store-mcp.
